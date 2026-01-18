@@ -413,7 +413,6 @@ class Watchpost:
         """
         try:
             _cv.get()
-            yield self
         except LookupError:
             # We only set the global context variable if it is not already set.
             _token = _cv.set(self)
@@ -421,6 +420,12 @@ class Watchpost:
                 yield self
             finally:
                 _cv.reset(_token)
+        else:
+            # Yielding here (not in the try block) ensures we only catch
+            # `LookupError` from `_cv.get()`, not from code that runs during
+            # yield. (A `try` falls through to an `else` if no exception was
+            # caught.)
+            yield self
 
     def register_datasource(
         self,

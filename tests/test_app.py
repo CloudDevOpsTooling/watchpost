@@ -99,6 +99,19 @@ def test_app_context_exception_handling():
         _ = current_app.__name__  # type: ignore[unresolved-attribute]
 
 
+def test_app_context_lookup_error():
+    app = Watchpost(
+        checks=[],
+        execution_environment=TEST_ENVIRONMENT,
+        executor=BlockingCheckExecutor(),
+    )
+
+    with pytest.raises(LookupError, match="lookup error across yield"):
+        with app.app_context():
+            with app.app_context():
+                raise LookupError("lookup error across yield")
+
+
 def test_run_checks_once():
     """Test that the run_checks_once method runs all checks and outputs the results."""
     # Create a mock check that returns a known ExecutionResult
