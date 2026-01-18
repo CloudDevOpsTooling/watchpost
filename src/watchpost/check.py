@@ -173,7 +173,6 @@ class Check:
                 tuple(self.service_labels.items()),
                 self.cache_for,
                 self.invocation_information,
-                self.scheduling_strategies,
             )
         )
 
@@ -467,6 +466,7 @@ def check(
     environments: list[Environment],
     cache_for: timedelta | str | None,
     hostname: HostnameInput | None = None,
+    scheduling_strategies: list[SchedulingStrategy] | None = None,
 ) -> Callable[[CheckFunction], Check]:
     """
     Decorator to define a Watchpost check function.
@@ -494,6 +494,8 @@ def check(
         hostname:
             An optional hostname input or strategy that controls piggyback host
             resolution for results of this check.
+        scheduling_strategies:
+            Optional list of scheduling strategies to apply to this check.
 
     Returns:
         A `Check` instance wrapping the decorated function and provided
@@ -514,6 +516,7 @@ def check(
             environments=environments,
             cache_for=normalize_to_timedelta(cache_for),
             invocation_information=check_definition,
+            scheduling_strategies=scheduling_strategies,
             hostname_strategy=to_strategy(hostname),
         )
 
