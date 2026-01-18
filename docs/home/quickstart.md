@@ -22,25 +22,24 @@ If you need to install uv, see the [uv installation guide](https://docs.astral.s
 
     ```console
     $ cd my-watchpost
-    $ uv add 'git+https://github.com/pitkley/watchpost[cli]'
+    $ uv add 'watchpost[cli]'
     Using CPython 3.13.5
     Creating virtual environment at: .venv
-        Updated https://github.com/pitkley/watchpost (<some hash>)
-    Resolved 13 packages in 266ms
+    Resolved 12 packages in 266ms
           Built my-watchpost @ file:///tmp/my-watchpost
-    Prepared 1 package in 13ms
-    Installed 11 packages in 31ms
-     + anyio==4.10.0
-     + click==8.2.1
-     + idna==3.10
+    Prepared 6 packages in 166ms
+    Installed 11 packages in 25ms
+     + anyio==4.12.1
+     + click==8.3.1
+     + idna==3.11
      + markdown-it-py==4.0.0
      + mdurl==0.1.2
+     + my-watchpost==0.1.0 (from file:///Users/pit/tmp/mycontent/my-watchpost)
      + pygments==2.19.2
-     + rich==14.1.0
-     + sniffio==1.3.1
+     + rich==14.2.0
      + starlette==0.47.3
      + timelength==3.0.2
-     + watchpost==0.1.0 (from git+https://github.com/pitkley/watchpost@<some hash>)
+     + watchpost==0.1.0
     ```
 
     We recommend installing Watchpost with the `cli` extra.
