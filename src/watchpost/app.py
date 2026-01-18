@@ -1065,19 +1065,28 @@ class Watchpost:
                     continue
                 yield from execution_results
 
-    def run_checks(self) -> Generator[bytes]:
+    def run_checks(self, act_as_agent: bool = True) -> Generator[bytes]:
         """
         Run all checks and produce a Checkmk-compatible output stream.
 
         This yields the agent header, the serialized results of all checks, and
         synthetic sections.
 
+        Parameters:
+            act_as_agent:
+                If Watchpost should act as a full Checkmk agent, including the
+                `<<<checkmk>>>` preamble. This should be true if Watchpost is
+                queried by the Checkmk site directly (via HTTP), but can be set
+                to false if you have the Checkmk agent invoke Watchpost for you,
+                for example.
+
         Yields:
             Bytes in Checkmk agent format.
         """
         self.verify_check_scheduling()
         with self.app_context():
-            yield from self._generate_checkmk_agent_output()
+            if act_as_agent:
+                yield from self._generate_checkmk_agent_output()
 
             for check in self.checks:
                 for execution_result in self.run_check(check):
@@ -1085,12 +1094,20 @@ class Watchpost:
 
             yield from self._generate_synthetic_result_outputs()
 
-    def run_checks_once(self) -> None:
+    def run_checks_once(self, act_as_agent: bool = True) -> None:
         """
         Run all the checks once and write the output stream to stdout.
 
         This is a convenience method primarily intended for CLI usage.
+
+        Parameters:
+            act_as_agent:
+                If Watchpost should act as a full Checkmk agent, including the
+                `<<<checkmk>>>` preamble. This should be true if Watchpost is
+                queried by the Checkmk site directly (via HTTP), but can be set
+                to false if you have the Checkmk agent invoke Watchpost for you,
+                for example.
         """
         with self.app_context():
-            for chunk in self.run_checks():
+            for chunk in self.run_checks(act_as_agent=act_as_agent):
                 sys.stdout.buffer.write(chunk)
