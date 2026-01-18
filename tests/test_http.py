@@ -166,7 +166,7 @@ def test_root_with_real_check():
                 "details": None,
             },
             {
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "service_labels": {},
                 "environment": "test-env",
                 "check_state": "OK",
@@ -228,7 +228,7 @@ def test_root_with_real_check_and_datasource():
                 "details": None,
             },
             {
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "service_labels": {},
                 "environment": "test-env",
                 "check_state": "OK",

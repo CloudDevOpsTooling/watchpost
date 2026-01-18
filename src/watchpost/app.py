@@ -482,16 +482,25 @@ class Watchpost:
         """
 
         def run_checks() -> ExecutionResult:
+            applicable_checks = [
+                check
+                for check in self.checks
+                if self._resolve_check_scheduling_decision(
+                    check, self.execution_environment
+                )
+                == SchedulingDecision.SCHEDULE
+            ]
+
             details = "Check functions:\n- "
-            details += "\n- ".join(check.name for check in self.checks)
+            details += "\n- ".join(check.name for check in applicable_checks)
 
             return ExecutionResult(
                 piggyback_host="",
-                service_name="Run checks",
+                service_name="Watchpost: executed checks",
                 service_labels={},
                 environment_name=self.execution_environment.name,
                 check_state=CheckState.OK,
-                summary=f"Ran {len(self.checks)} checks",
+                summary=f"Ran {len(applicable_checks)} checks",
                 details=details,
             )
 

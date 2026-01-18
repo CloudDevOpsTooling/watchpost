@@ -75,8 +75,8 @@ def test_run_checks_returns_placeholder_until_result_is_ready():
             == "Check is running asynchronously and first results are not available yet"
         )
 
-        # The synthetic 'Run checks' result should also be present
-        assert any(r["service_name"] == "Run checks" for r in results1)
+        # The synthetic 'Watchpost: executed checks' result should also be present
+        assert any(r["service_name"] == "Watchpost: executed checks" for r in results1)
 
         # Act 2: Second run without setting the event yet should still yield UNKNOWN
         output2 = _collect_output(app)
@@ -86,7 +86,7 @@ def test_run_checks_returns_placeholder_until_result_is_ready():
         ]
         assert len(service_results2) == 1
         assert service_results2[0]["check_state"] == "UNKNOWN"
-        assert any(r["service_name"] == "Run checks" for r in results2)
+        assert any(r["service_name"] == "Watchpost: executed checks" for r in results2)
 
 
 def test_run_checks_returns_final_result_after_event_is_set():
@@ -145,8 +145,8 @@ def test_run_checks_returns_final_result_after_event_is_set():
         assert service_results2[0]["check_state"] == "OK"
         assert service_results2[0]["summary"] == "All good"
 
-        # The synthetic 'Run checks' result should also be present
-        assert any(r["service_name"] == "Run checks" for r in results2)
+        # The synthetic 'Watchpost: executed checks' result should also be present
+        assert any(r["service_name"] == "Watchpost: executed checks" for r in results2)
 
 
 def test_executor_errored_integration_nonblocking():

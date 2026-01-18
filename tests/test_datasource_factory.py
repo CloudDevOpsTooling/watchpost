@@ -504,7 +504,7 @@ def test_watchpost_run_checks_with_factory() -> None:
                 "environment": "test-env",
                 "metrics": [],
                 "service_labels": {},
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "summary": "Ran 1 checks",
             },
         ],
@@ -819,7 +819,7 @@ def test_datasource_with_factory():
                 "details": None,
             },
             {
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "service_labels": {},
                 "environment": "test-env",
                 "check_state": "OK",
@@ -890,7 +890,7 @@ def test_datasource_with_factory_no_args():
     assert sorted(checkmk_output, key=lambda result: result["service_name"]) == sorted(
         [
             {
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "service_labels": {},
                 "environment": "test-env",
                 "check_state": "OK",

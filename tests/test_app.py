@@ -339,7 +339,7 @@ def test_ensure_current_app_is_set_in_check():
                 "environment": "test-env",
                 "metrics": [],
                 "service_labels": {},
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "summary": "Ran 1 checks",
             },
         ],
@@ -498,9 +498,9 @@ def test_run_checks_dont_schedule_produces_no_results():
         all_data = b"".join(call_args[0][0] for call_args in mock_write.call_args_list)
         results = decode_checkmk_output(all_data)
 
-        # There should only be the synthetic "Run checks" result
+        # There should only be the synthetic "Watchpost: executed checks" result
         assert len(results) == 1
-        assert results[0]["service_name"] == "Run checks"
+        assert results[0]["service_name"] == "Watchpost: executed checks"
         # And definitely no result for our check
         assert not any(r["service_name"] == "Dont schedule" for r in results)
 
@@ -533,7 +533,7 @@ def test_datasource_unavailable_without_cache_returns_unknown():
     assert "temporary outage" in result["details"]
     assert "DatasourceUnavailable" in result["details"]
     # Synthetic result is present
-    assert any(r["service_name"] == "Run checks" for r in results)
+    assert any(r["service_name"] == "Watchpost: executed checks" for r in results)
 
 
 def test_datasource_unavailable_with_expired_cache_returns_enriched_cached_result():

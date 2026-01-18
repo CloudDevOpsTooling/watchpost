@@ -151,7 +151,7 @@ def test_uninstantiable_datasource_does_not_affect_other_checks():
     assert sorted(checkmk_output, key=lambda result: result["service_name"]) == sorted(
         [
             {
-                "service_name": "Run checks",
+                "service_name": "Watchpost: executed checks",
                 "service_labels": {},
                 "environment": "env1",
                 "check_state": "OK",

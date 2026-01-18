@@ -118,7 +118,7 @@ def test_watchpost_mixed_checks_and_module_discovery_and_run_once(temp_pkg):
     names = sorted(c.service_name for c in app.checks)
     assert names == ["svc_a", "svc_b", "svc_direct"]
 
-    # Capture Checkmk output and ensure the synthetic "Run checks" entry mentions all checks
+    # Capture Checkmk output and ensure the synthetic "Watchpost: executed checks" entry mentions all checks
     with patch("sys.stdout.buffer.write") as mock_write:
         app.run_checks_once()
 
@@ -126,7 +126,9 @@ def test_watchpost_mixed_checks_and_module_discovery_and_run_once(temp_pkg):
         results = decode_checkmk_output(all_data)
 
         # Find the synthetic result
-        synthetic = next(r for r in results if r["service_name"] == "Run checks")
+        synthetic = next(
+            r for r in results if r["service_name"] == "Watchpost: executed checks"
+        )
         assert synthetic["summary"] == f"Ran {len(app.checks)} checks"
         # Details should list all discovered checks; accept either service_name or function path
         details = synthetic["details"] or ""

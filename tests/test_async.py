@@ -148,7 +148,7 @@ def test_app_runs_async_check_and_emits_output():
         all_data = b"".join(call_args[0][0] for call_args in mock_write.call_args_list)
         results = decode_checkmk_output(all_data)
 
-    # Should include both our check and the synthetic "Run checks"
+    # Should include both our check and the synthetic "Watchpost: executed checks"
     assert any(r["service_name"] == "async-check" for r in results)
     our = next(r for r in results if r["service_name"] == "async-check")
     assert our["check_state"] == "OK"
