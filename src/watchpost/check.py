@@ -1,4 +1,5 @@
 # Copyright 2025 TAKKT Industrial & Packaging GmbH
+# Copyright 2026 Pit Kleyersburg <pitkley@googlemail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,11 +46,12 @@ import typing
 from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from .cache import Cache, CacheEntry, Storage
 from .datasource import Datasource
 from .environment import Environment
+from .globals import current_app
 from .hostname import HostnameInput, HostnameStrategy, resolve_hostname, to_strategy
 from .result import (
     CheckResult,
@@ -99,6 +101,148 @@ CheckFunction = (
     | Callable[[_E, _D, _D, _D, _D, _D, _D, _D, _D], _R]
     | Callable[[_E, _D, _D, _D, _D, _D, _D, _D, _D, _D], _R]
 )
+
+
+class ErrorHandler(Protocol):
+    """
+    A strategy for transforming error results to match a check's service
+    pattern.
+
+    When a check function fails to execute successfully (e.g., raises an
+    exception, datasource is unavailable, or scheduling prevents execution),
+    Watchpost needs to create synthetic monitoring results. An `ErrorHandler`
+    transforms the initial error result(s) to match the services that the check
+    would normally create.
+
+    For example, if a check normally produces results for multiple hostnames or
+    with different name suffixes, an ErrorHandler can expand a single error
+    result into multiple results with the appropriate hostname and service name
+    variations.
+
+    Multiple ErrorHandlers can be attached to a single check. They are applied
+    sequentially, with each handler receiving the output of the previous one.
+    This allows composition of different expansion strategies (e.g., first
+    expand by hostname, then by name suffix).
+
+    See `expand_by_hostname()` and `expand_by_name_suffix()` for built-in
+    implementations that handle common expansion patterns.
+    """
+
+    def __call__(
+        self,
+        check: Check,
+        environment: Environment,
+        results: list[ExecutionResult],
+    ) -> list[ExecutionResult]:
+        """
+        Transform error results to match the check's service pattern.
+
+        This method is called when a check fails to execute successfully. The
+        initial `error_results` list typically contains a single
+        `ExecutionResult` representing the error condition (e.g., `CRIT` state
+        with exception details).
+
+        The handler should examine the check definition and environment to
+        determine what services the check would normally produce, then transform
+        the input results accordingly. For example, a handler might:
+
+        - Duplicate results across multiple hostnames using `resolve_hostname()`
+        - Apply name suffixes to create service name variations
+        - Apply custom business logic based on check metadata
+
+        Parameters:
+            check:
+                The check definition, providing access to service name, labels,
+                hostname strategy, and other metadata that may inform the
+                transformation.
+            environment:
+                The environment in which the check was supposed to run,
+                providing context for hostname resolution and other
+                environment-specific decisions.
+            results:
+                The current list of results to transform. Initially this is
+                typically a single result, but when multiple handlers are
+                chained, it may contain results from previous handlers.
+
+        Returns:
+            A list of `ExecutionResult` objects. For simple transformations,
+            this may be the same length as error_results. For expansions (e.g.,
+            multiplying across hostnames or name suffixes), this will be longer.
+            The results should include all necessary variations to match what
+            the check function would have produced during normal execution.
+
+        Notes:
+            - The handler should NOT modify the input `ExecutionResult` objects.
+              Instead, create new objects with the transformed values.
+            - All fields from the source result should be preserved unless
+              intentionally modified (e.g., `piggyback_host`, `service_name`).
+            - The check state (`CRIT`, `UNKNOWN`, etc.) should typically be
+              preserved unless the handler has a specific reason to change it.
+        """
+        ...
+
+
+def expand_by_hostname(hostnames: list[str]) -> ErrorHandler:
+    def handler(
+        check: Check,
+        environment: Environment,
+        results: list[ExecutionResult],
+    ) -> list[ExecutionResult]:
+        resolved_hostnames = [
+            resolve_hostname(
+                watchpost=current_app,
+                environment=environment,
+                check=check,
+                result=None,
+                fallback_to_default_hostname_generation=current_app.hostname_fallback_to_default_hostname_generation,
+                coerce_into_valid_hostname=current_app.hostname_coerce_into_valid_hostname,
+                explicit_hostname=hostname,
+            )
+            for hostname in hostnames
+        ]
+
+        return [
+            ExecutionResult(
+                piggyback_host=resolved_hostname,
+                service_name=result.service_name,
+                service_labels=result.service_labels,
+                environment_name=environment.name,
+                check_state=result.check_state,
+                summary=result.summary,
+                details=result.details,
+                metrics=result.metrics,
+                check_definition=result.check_definition,
+            )
+            for result in results
+            for resolved_hostname in resolved_hostnames
+        ]
+
+    return handler
+
+
+def expand_by_name_suffix(name_suffixes: list[str]) -> ErrorHandler:
+    def handler(
+        check: Check,
+        environment: Environment,
+        results: list[ExecutionResult],
+    ) -> list[ExecutionResult]:
+        _ = check, environment
+        return [
+            ExecutionResult(
+                piggyback_host=result.piggyback_host,
+                service_name=f"{result.service_name}{name_suffix}",
+                service_labels=result.service_labels,
+                environment_name=result.environment_name,
+                check_state=result.check_state,
+                summary=result.summary,
+                details=result.details,
+                check_definition=result.check_definition,
+            )
+            for result in results
+            for name_suffix in name_suffixes
+        ]
+
+    return handler
 
 
 @dataclass(frozen=True)
@@ -160,6 +304,12 @@ class Check:
     """
     Strategy to resolve the piggyback host (hostname) for results of this
     check. If not set here, environment- or app-level strategies may apply.
+    """
+
+    error_handlers: list[ErrorHandler] | None = None
+    """
+    Optional error handlers that are called to adapt the results when the check
+    function raises an exception.
     """
 
     def __hash__(self) -> int:
@@ -458,6 +608,21 @@ class Check:
             stderr=stderr,
         )
 
+    def apply_error_handlers(
+        self,
+        environment: Environment,
+        execution_result: ExecutionResult,
+    ) -> list[ExecutionResult]:
+        results = [execution_result]
+
+        if not self.error_handlers:
+            return results
+
+        for error_handler in self.error_handlers:
+            results = error_handler(self, environment, results)
+
+        return results
+
 
 def check(
     *,
@@ -467,6 +632,7 @@ def check(
     cache_for: timedelta | str | None,
     hostname: HostnameInput | None = None,
     scheduling_strategies: list[SchedulingStrategy] | None = None,
+    error_handlers: list[ErrorHandler] | None = None,
 ) -> Callable[[CheckFunction], Check]:
     """
     Decorator to define a Watchpost check function.
@@ -496,6 +662,9 @@ def check(
             resolution for results of this check.
         scheduling_strategies:
             Optional list of scheduling strategies to apply to this check.
+        error_handlers:
+            Optional list of error handlers that are called to adapt the results
+            when the check function raises an exception.
 
     Returns:
         A `Check` instance wrapping the decorated function and provided
@@ -518,6 +687,7 @@ def check(
             invocation_information=check_definition,
             scheduling_strategies=scheduling_strategies,
             hostname_strategy=to_strategy(hostname),
+            error_handlers=error_handlers,
         )
 
     return decorator

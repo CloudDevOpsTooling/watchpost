@@ -432,17 +432,19 @@ def resolve_hostname(
     result: CheckResult | None,
     fallback_to_default_hostname_generation: bool = True,
     coerce_into_valid_hostname: bool = True,
+    explicit_hostname: HostnameInput | None = None,
 ) -> str:
     """
     Resolve the final hostname for a check execution.
 
     Precedence:
 
-    1. Per-result override on the `CheckResult` (if present).
-    2. Check-level strategy on the `Check`.
-    3. Environment-level strategy on the `Environment`.
-    4. Watchpost-level strategy on the application.
-    5. Optional fallback to "{service_name}-{environment.name}" if enabled.
+    1. Explicit hostname (if present).
+    2. Per-result override on the `CheckResult` (if present).
+    3. Check-level strategy on the `Check`.
+    4. Environment-level strategy on the `Environment`.
+    5. Watchpost-level strategy on the application.
+    6. Optional fallback to "{service_name}-{environment.name}" if enabled.
 
     The resolved hostname must conform to RFC1123. If it does not and
     `coerce_into_valid_hostname` is True, the hostname is coerced using
@@ -462,6 +464,8 @@ def resolve_hostname(
             strategy produced a hostname.
         coerce_into_valid_hostname:
             Whether to coerce a non-compliant hostname into RFC1123 format.
+        explicit_hostname:
+            An explicit hostname override, if any.
 
     Returns:
         The resolved hostname.
@@ -480,12 +484,17 @@ def resolve_hostname(
     # Determine candidate in precedence order
     candidate: str | NoPiggybackHost | None = None
 
-    # 1) Per-result override
-    if result and result.hostname:
+    # 1) Explicit hostname override
+    if explicit_hostname:
+        if strategy := to_strategy(explicit_hostname):
+            candidate = strategy.resolve(ctx)
+
+    # 2) Per-result override
+    if not candidate and result and result.hostname:
         if strategy := to_strategy(result.hostname):
             candidate = strategy.resolve(ctx)
     else:
-        # 2) Check-level strategy
+        # 3) Check-level strategy
         if check.hostname_strategy:
             try:
                 val = check.hostname_strategy.resolve(ctx)
@@ -496,7 +505,7 @@ def resolve_hostname(
                     f"Hostname strategy failed at check level for {check.service_name}/{environment.name}: {e}"
                 ) from e
 
-        # 3) Environment-level strategy
+        # 4) Environment-level strategy
         if candidate is None and environment.hostname_strategy:
             try:
                 val = environment.hostname_strategy.resolve(ctx)
@@ -507,7 +516,7 @@ def resolve_hostname(
                     f"Hostname strategy failed at environment level for {check.service_name}/{environment.name}: {e}"
                 ) from e
 
-        # 4) Watchpost-level strategy
+        # 5) Watchpost-level strategy
         if candidate is None and watchpost.hostname_strategy:
             try:
                 val = watchpost.hostname_strategy.resolve(ctx)

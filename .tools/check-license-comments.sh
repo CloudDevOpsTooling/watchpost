@@ -16,7 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Pattern for regular files
-PATTERN_COPYRIGHT='^(//|#) Copyright [[:digit:]]+ TAKKT Industrial & Packaging GmbH'
+PATTERN_COPYRIGHT='^(//|#) Copyright [[:digit:]]+ .+'
 PATTERN_SPDX='^(//|#) SPDX-License-Identifier: Apache-2.0'
 
 # Pattern for vendored files

@@ -922,7 +922,8 @@ class Watchpost:
                 pass
             case SchedulingDecision.SKIP:
                 if not check_results_cache_entry:
-                    return [
+                    return check.apply_error_handlers(
+                        environment,
                         ExecutionResult(
                             piggyback_host=piggyback_host,
                             service_name=check.service_name,
@@ -931,8 +932,8 @@ class Watchpost:
                             check_state=CheckState.UNKNOWN,
                             summary="Check is temporarily unschedulable and no prior results are available",
                             check_definition=check.invocation_information,
-                        )
-                    ]
+                        ),
+                    )
                 return check_results_cache_entry.value
             case SchedulingDecision.DONT_SCHEDULE:
                 return None
@@ -990,7 +991,8 @@ class Watchpost:
                         result.details = additional_details
                 return check_results_cache_entry.value
 
-            return [
+            return check.apply_error_handlers(
+                environment,
                 ExecutionResult(
                     piggyback_host=piggyback_host,
                     service_name=check.service_name,
@@ -1000,10 +1002,11 @@ class Watchpost:
                     summary=str(e),
                     details=additional_details,
                     check_definition=check.invocation_information,
-                )
-            ]
+                ),
+            )
         except Exception as e:
-            return [
+            return check.apply_error_handlers(
+                environment,
                 ExecutionResult(
                     piggyback_host=piggyback_host,
                     service_name=check.service_name,
@@ -1013,11 +1016,12 @@ class Watchpost:
                     summary=str(e),
                     details="".join(traceback.format_exception(e)),
                     check_definition=check.invocation_information,
-                )
-            ]
+                ),
+            )
 
         if not maybe_execution_results:
-            return [
+            return check.apply_error_handlers(
+                environment,
                 ExecutionResult(
                     piggyback_host=piggyback_host,
                     service_name=check.service_name,
@@ -1026,8 +1030,8 @@ class Watchpost:
                     check_state=CheckState.UNKNOWN,
                     summary="Check is running asynchronously and first results are not available yet",
                     check_definition=check.invocation_information,
-                )
-            ]
+                ),
+            )
 
         if use_cache:
             self._check_cache.store_check_results(
