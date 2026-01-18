@@ -8,6 +8,26 @@ authors = [
     { name = "Pit Kleyersburg", email = "pitkley@googlemail.com" },
 ]
 requires-python = ">=3.13"
+keywords = [
+    "monitoring",
+    "checkmk",
+    "observability",
+    "infrastructure",
+    "devops",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
+]
 dependencies = [
     "starlette>=0.47.3,<0.48.0",
     "timelength>=3.0.2,<3.1.0",
@@ -24,6 +44,13 @@ redis = [
 
 [project.scripts]
 watchpost = "watchpost.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/pitkley/watchpost"
+Documentation = "https://pitkley.github.io/watchpost/"
+Repository = "https://github.com/pitkley/watchpost.git"
+Issues = "https://github.com/pitkley/watchpost/issues"
+Changelog = "https://github.com/pitkley/watchpost/releases"
 
 [build-system]
 requires = ["uv_build>=0.8.2,<0.9.0"]
@@ -97,4 +124,7 @@ extend-select = [
 ]
 
 [tool.ty.src]
-exclude = ["checkmk-integration/watchpost-plugin/"]
+exclude = [
+    "checkmk-integration/watchpost-plugin/",
+    "tests/",
+]

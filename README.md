@@ -8,7 +8,7 @@ It helps you configure checks through a simple function decorator, handles runni
 Install Watchpost in your project:
 
 ```shell
-pip install 'git+https://github.com/pitkley/watchpost[cli]'
+pip install 'watchpost[cli]'
 ```
 
 You can now write a basic Watchpost application like this:
