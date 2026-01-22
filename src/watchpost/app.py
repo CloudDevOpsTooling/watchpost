@@ -34,6 +34,7 @@ import sys
 import traceback
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
+from datetime import timedelta
 from types import EllipsisType, ModuleType
 from typing import (
     Annotated,
@@ -968,8 +969,10 @@ class Watchpost:
         if can_reuse_results:
             return check_results_cache_entry.value  # type: ignore[union-attr]
 
+        check_has_errored = True
         try:
             maybe_execution_results = executor.result(key=executor_key)
+            check_has_errored = False
 
             # If the check is still running asynchronously but we did have a set
             # of results cached, we do want to fall back to this cache while it
@@ -991,7 +994,7 @@ class Watchpost:
                         result.details = additional_details
                 return check_results_cache_entry.value
 
-            return check.apply_error_handlers(
+            maybe_execution_results = check.apply_error_handlers(
                 environment,
                 ExecutionResult(
                     piggyback_host=piggyback_host,
@@ -1005,7 +1008,7 @@ class Watchpost:
                 ),
             )
         except Exception as e:
-            return check.apply_error_handlers(
+            maybe_execution_results = check.apply_error_handlers(
                 environment,
                 ExecutionResult(
                     piggyback_host=piggyback_host,
@@ -1038,6 +1041,7 @@ class Watchpost:
                 check=check,
                 environment=environment,
                 results=maybe_execution_results,
+                override_cache_for=timedelta(0) if check_has_errored else None,
             )
 
         return maybe_execution_results

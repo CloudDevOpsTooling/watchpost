@@ -21,7 +21,7 @@ from datetime import UTC, datetime, timedelta
 
 from watchpost.app import Watchpost
 from watchpost.cache import CacheEntry, CacheKey, InMemoryStorage
-from watchpost.check import check
+from watchpost.check import CheckResult, check
 from watchpost.environment import Environment
 from watchpost.executor import CheckExecutor
 from watchpost.result import CheckState, ExecutionResult, ok
@@ -338,3 +338,72 @@ def test_async_uses_expired_cached_results_when_available_with_cache_for_none():
         assert service_results[0]["environment"] == env.name
         assert service_results[0]["check_state"] == "OK"
         assert service_results[0]["summary"] == "Cached OK"
+
+
+def test_raising_check_does_not_flap():
+    env = Environment("env-nonblocking")
+    watchpost_env = Environment("watchpost-env")
+    storage = InMemoryStorage()
+
+    with (
+        CheckExecutor(max_workers=1) as executor,
+        with_event() as event,
+    ):
+
+        @check(
+            name="failing-service",
+            service_labels={"test": "true"},
+            environments=[env],
+            cache_for="1m",
+        )
+        def failing_check() -> CheckResult:
+            event.wait()
+            raise ValueError("failing service")
+
+        app = Watchpost(
+            checks=[failing_check],
+            execution_environment=watchpost_env,
+            executor=executor,
+            version="test",
+            check_cache_storage=storage,
+        )
+
+        # 1. Request output, result should be unknown while check runs
+        output1 = b"".join(app.run_checks())
+        results1 = decode_checkmk_output(output1)
+        sr1 = [r for r in results1 if r["service_name"] == "failing-service"]
+        assert len(sr1) == 1 and sr1[0]["check_state"] == "UNKNOWN"
+
+        # 2. Set event and wait for execution to finish
+        key = (failing_check.name, env.name)
+        event.set()
+        key_state = executor._state.get(key)
+        assert key_state, "future should be present for failing check"
+        assert key_state.active_futures, "future should be present for failing check"
+        wait(executor._state[key].active_futures, return_when="ALL_COMPLETED")
+        event.clear()
+
+        # 3. Request output, result should be crit. The check should not be
+        #    resubmitted, because it is defined to cache the result.
+        output2 = b"".join(app.run_checks())
+        results2 = decode_checkmk_output(output2)
+        sr2 = [r for r in results2 if r["service_name"] == "failing-service"]
+        assert len(sr2) == 1 and sr2[0]["check_state"] == "CRIT"
+        assert executor._state.get(key) is None
+
+        # 4. Request output again, result should be crit because cache is reused
+        #    and check should have been resubmitted.
+        output3 = b"".join(app.run_checks())
+        results3 = decode_checkmk_output(output3)
+        sr3 = [r for r in results3 if r["service_name"] == "failing-service"]
+        assert len(sr3) == 1 and sr3[0]["check_state"] == "CRIT"
+        assert executor._state.get(key) is not None
+
+        # 5. Request output again, result should be unknown because cache should
+        #    only be used once and the check was not allowed to complete (still
+        #    waiting for event).
+        output4 = b"".join(app.run_checks())
+        results4 = decode_checkmk_output(output4)
+        sr4 = [r for r in results4 if r["service_name"] == "failing-service"]
+        assert len(sr4) == 1 and sr4[0]["check_state"] == "UNKNOWN"
+        assert executor._state.get(key) is not None

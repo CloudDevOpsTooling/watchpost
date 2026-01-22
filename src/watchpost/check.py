@@ -768,6 +768,7 @@ class CheckCache:
         check: Check,
         environment: Environment,
         results: list[ExecutionResult],
+        override_cache_for: timedelta | None = None,
     ) -> None:
         """
         Store the results of a check execution.
@@ -779,6 +780,8 @@ class CheckCache:
                 The environment in which the check ran.
             results:
                 The list of `ExecutionResult` instances to cache.
+            override_cache_for:
+                Override the time to cache the result for.
 
         Notes:
             This is a no-op if `check.cache_for` is `None` (caching disabled).
@@ -789,5 +792,7 @@ class CheckCache:
         self._cache.store(
             self._generate_check_cache_key(check, environment),
             results,
-            ttl=check.cache_for,
+            ttl=override_cache_for
+            if override_cache_for is not None
+            else check.cache_for,
         )
